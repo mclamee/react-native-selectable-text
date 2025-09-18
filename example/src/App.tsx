@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import { SelectableTextView } from 'react-native-selectable-text';
+import { SelectableTextView } from '@rob117/react-native-selectable-text';
 
 export default function App() {
   const [selectedText, setSelectedText] = useState('');
@@ -20,9 +20,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text>Selected Text: {selectedText}</Text>
-      <Text selectable>
-        Regular text
-      </Text>
+      <Text selectable>Regular text</Text>
       <SelectableTextView
         menuOptions={['look up', 'copy', 'share']}
         onSelection={handleSelection}
