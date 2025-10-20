@@ -422,18 +422,14 @@ using namespace facebook::react;
     menuController.menuItems = nil;
     
     NSMutableArray<UIMenuItem *> *menuItems = [[NSMutableArray alloc] init];
-    
-    for (NSString *option in _menuOptions) {
-        // Convert option to valid selector name (replace spaces and special chars with underscores)
-        NSString *selectorName = [[option stringByReplacingOccurrencesOfString:@" " withString:@"_"] 
-                                                stringByReplacingOccurrencesOfString:@"[^a-zA-Z0-9_]" 
-                                                withString:@"_" 
-                                                options:NSRegularExpressionSearch 
-                                                range:NSMakeRange(0, option.length)];
-        SEL action = NSSelectorFromString([NSString stringWithFormat:@"customAction_%@:", selectorName]);
+
+    for (NSUInteger i = 0; i < _menuOptions.count; i++) {
+        NSString *option = _menuOptions[i];
+        // Use index-based selector to avoid issues with non-ASCII characters
+        SEL action = NSSelectorFromString([NSString stringWithFormat:@"customAction_%lu:", (unsigned long)i]);
         UIMenuItem *menuItem = [[UIMenuItem alloc] initWithTitle:option action:action];
         [menuItems addObject:menuItem];
-        NSLog(@"iOS SelectableText - Added menu item: %@ with selector: customAction_%@:", option, selectorName);
+        NSLog(@"iOS SelectableText - Added menu item: %@ with selector: customAction_%lu:", option, (unsigned long)i);
     }
     
     menuController.menuItems = menuItems;
@@ -471,12 +467,18 @@ using namespace facebook::react;
 {
     NSString *selectorName = NSStringFromSelector(action);
     NSLog(@"iOS SelectableText - canPerformAction called with: %@", selectorName);
-    
+
+    // Check if it's one of our custom actions (customAction_0:, customAction_1:, etc.)
     if ([selectorName hasPrefix:@"customAction_"] && [selectorName hasSuffix:@":"]) {
-        NSLog(@"iOS SelectableText - canPerformAction: %@ -> YES", selectorName);
-        return YES;
+        // Extract the index and verify it's valid
+        NSString *indexStr = [[selectorName substringFromIndex:13] substringToIndex:[selectorName length] - 14];
+        NSInteger index = [indexStr integerValue];
+        if (index >= 0 && index < _menuOptions.count) {
+            NSLog(@"iOS SelectableText - canPerformAction: %@ -> YES (index %ld)", selectorName, (long)index);
+            return YES;
+        }
     }
-    
+
     // Block ALL default system actions - we only want our custom ones
     NSLog(@"iOS SelectableText - Blocking default action: %@", selectorName);
     return NO;
@@ -505,31 +507,20 @@ using namespace facebook::react;
 {
     NSString *selectorName = NSStringFromSelector(anInvocation.selector);
     NSLog(@"iOS SelectableText - forwardInvocation called with selector: %@", selectorName);
-    
+
     if ([selectorName hasPrefix:@"customAction_"] && [selectorName hasSuffix:@":"]) {
-        // Extract cleaned option name from selector and find the original option
-        NSString *cleanedOption = [selectorName substringWithRange:NSMakeRange(13, selectorName.length - 14)];
-        NSLog(@"iOS SelectableText - Extracted cleaned option: '%@' from selector: '%@'", cleanedOption, selectorName);
-        
-        // Find the original option that matches this cleaned selector
-        NSString *originalOption = nil;
-        for (NSString *option in _menuOptions) {
-            NSString *testSelectorName = [[option stringByReplacingOccurrencesOfString:@" " withString:@"_"] 
-                                                    stringByReplacingOccurrencesOfString:@"[^a-zA-Z0-9_]" 
-                                                    withString:@"_" 
-                                                    options:NSRegularExpressionSearch 
-                                                    range:NSMakeRange(0, option.length)];
-            if ([testSelectorName isEqualToString:cleanedOption]) {
-                originalOption = option;
-                break;
-            }
-        }
-        
-        if (originalOption) {
-            NSLog(@"iOS SelectableText - Found original option: '%@' for cleaned option: '%@'", originalOption, cleanedOption);
+        // Extract index from selector (customAction_0: -> "0")
+        NSString *indexStr = [[selectorName substringFromIndex:13] substringToIndex:[selectorName length] - 14];
+        NSInteger index = [indexStr integerValue];
+
+        NSLog(@"iOS SelectableText - Extracted index: %ld from selector: '%@'", (long)index, selectorName);
+
+        if (index >= 0 && index < _menuOptions.count) {
+            NSString *originalOption = _menuOptions[index];
+            NSLog(@"iOS SelectableText - Found option at index %ld: '%@'", (long)index, originalOption);
             [self handleMenuSelection:originalOption];
         } else {
-            NSLog(@"iOS SelectableText - Could not find original option for cleaned option: '%@'", cleanedOption);
+            NSLog(@"iOS SelectableText - Invalid index %ld (menuOptions count: %lu)", (long)index, (unsigned long)_menuOptions.count);
         }
     } else {
         NSLog(@"iOS SelectableText - Selector doesn't match pattern, forwarding to super: %@", selectorName);
