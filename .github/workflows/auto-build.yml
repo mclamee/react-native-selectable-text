@@ -28,7 +28,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build library
-        run: yarn prepare
+        run: yarn prepare || yarn bob build
 
       - name: Check for changes in lib/
         id: check-changes
