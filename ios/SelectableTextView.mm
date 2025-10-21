@@ -407,13 +407,19 @@ using namespace facebook::react;
 - (void)showCustomMenu
 {
     NSLog(@"iOS SelectableText - showCustomMenu called");
-    
+
+    // Verify there's still a valid selection (async call may have outdated state)
+    if (_textView.selectedRange.length == 0) {
+        NSLog(@"iOS SelectableText - No selection when showing menu, aborting");
+        return;
+    }
+
     // Ensure text view can become first responder
     if (![_textView canBecomeFirstResponder]) {
         NSLog(@"iOS SelectableText - textView cannot become first responder");
         return;
     }
-    
+
     [_textView becomeFirstResponder];
     
     UIMenuController *menuController = [UIMenuController sharedMenuController];
@@ -441,11 +447,18 @@ using namespace facebook::react;
     
     // Force update the menu
     [menuController update];
-    
+
+    // Check if there's a valid selection before trying to show menu
+    UITextRange *selectedRange = _textView.selectedTextRange;
+    if (!selectedRange) {
+        NSLog(@"iOS SelectableText - No selected text range, cannot show menu");
+        return;
+    }
+
     // Show menu at selection
-    CGRect selectedRect = [_textView firstRectForRange:_textView.selectedTextRange];
+    CGRect selectedRect = [_textView firstRectForRange:selectedRange];
     NSLog(@"iOS SelectableText - Selected rect: %@", NSStringFromCGRect(selectedRect));
-    
+
     if (!CGRectIsEmpty(selectedRect)) {
         // Convert rect to view coordinates
         CGRect targetRect = [_textView convertRect:selectedRect toView:_textView];
